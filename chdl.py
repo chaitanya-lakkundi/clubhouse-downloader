@@ -33,24 +33,29 @@ def get_chunk_urls(churl):
         mkdir(chdir)
     except Exception as e:
         print("Unable to make directory: ", repr(e))
-        from sys import exit
-        exit(1)
+        return
 
     wait = WebDriverWait(driver, 10)
     try:
         click_to_play = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".rounded-room p")))
         click_to_play.click()
     except Exception as e:
-        print("Erro in click_to_play: ", repr(e))
+        print("Error in click_to_play: ", repr(e))
 
-    room_name = driver.find_element(by=By.CSS_SELECTOR, value="#react-container h1")
+    room_name = driver.find_element(by=By.CSS_SELECTOR, value="#react-container h1").text
     try:
-        title = driver.find_element(by=By.CSS_SELECTOR, value="#react-container h1:nth-child(2)")
+        title = driver.find_element(by=By.CSS_SELECTOR, value="#react-container h1:nth-child(2)").text
     except:
         title = ""
 
-    audio = driver.find_element(by=By.TAG_NAME, value="audio")
-    duration = int(float(audio.get_attribute("duration")))
+    try:
+        audio = wait.until(EC.visibility_of_element_located((By.TAG_NAME, "audio")))
+        sleep(2)
+        duration = int(float(audio.get_attribute("duration")))
+    except Exception as e:
+        print("Error in finding audio element: ", repr(e))
+        return
+
     currentTime = 0
 
     # if the script fails due to some reason, do not loop indefinitely. limit to 7200.
@@ -93,13 +98,23 @@ def download_urls(urls, destdir):
     return done
 
 def merge_chunks(chdir):
+    from os.path import basename
     print("Merge chunks in ", chdir)
-    out = open(path_join(chdir, "out.ts"), "wb")
-    for fname in sorted(glob("{}{}*.ts".format(chdir, sep))):
-        with open(fname, "rb") as fd:
-            out.write(fd.read())
+    ofname = path_join(chdir, "out.ts")
+    out = open(ofname, "wb")
+    # file not found
+    fnf = 0
+    for i in range(1, 1000):
+        fname = path_join(chdir, str(i)) + ".ts"
+        try:
+            with open(fname, "rb") as fd:
+                out.write(fd.read())
+        except:
+            fnf += 1
+            if fnf >= 5:
+                break
     out.close()
-    return "out.ts"
+    return ofname
 
 def convert_to_m4a(filepath, outpath):
     from subprocess import Popen
@@ -130,12 +145,20 @@ def write_info_verify(filepath, info):
         return False
 
 def download_ch_audio(churl):
-    chunks, chdir, info = get_chunk_urls(churl)
-    count = download_urls(chunks, chdir)
+    try:
+        chunks, chdir, info = get_chunk_urls(churl)
+        count = download_urls(chunks, chdir)
+    except Exception as e:
+        print("Error in download_ch_audio: ", repr(e))
+        return
+
     if len(chunks) != count:
         print("Some chunks have not been downloaded")
+
     fn = merge_chunks(chdir)
+
     convert_to_m4a(fn, path_join(chdir, "out.m4a"))
+
     if write_info_verify(path_join(chdir, "out.m4a"), info):
         print("Success on ", churl)
     else:
