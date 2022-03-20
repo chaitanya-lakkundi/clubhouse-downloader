@@ -49,24 +49,24 @@
                     🟦
                     {% endfor %}
                     </span>
-                    <div hx-get="/s/{{s.sid}}/stage" hx-target="#stage_{{s.sid}}" hx-swap="innerHTML" hx-trigger="every 10s"></div>
+                    <div hx-get="/s/{{s.sid}}/stage" hx-target="#stage_{{s.sid}}" hx-swap="innerHTML" {% if s.status == 0 %} hx-trigger="every 10s" {% else %} hx-trigger="click from:#{{s.chdir}}" {% endif %}></div>
                     <div name="duration" style="font-size: 18px" data="{{s.duration}}"></div>
                   </div>
 
                   <div class="row">
-                    <div class="progress" style="height: 20px; width: 200px;" hx-get="/s/{{s.sid}}/progress" hx-trigger="every 5s">
+                    <div class="progress" style="height: 20px; width: 200px;" hx-get="/s/{{s.sid}}/progress" {% if s.status == 0 %} hx-trigger="every 5s" {% else %} hx-trigger="click from:#{{s.chdir}}" {% endif %}>
                       <!-- background: #17a2b8" -->
-                      <div id="progress_{{s.sid}}" class="progress-bar progress-bar-striped" role="progressbar" style="width: {{s.pc}}%; aria-valuenow="{{s.pc}}" aria-valuemin="0" aria-valuemax="100">{{s.pc}}%</div>
+                      <div id="progress_{{s.sid}}" class="progress-bar progress-bar-striped bg-secondary" role="progressbar" style="width: {{s.pc}}%; aria-valuenow="{{s.pc}}" aria-valuemin="0" aria-valuemax="100">{{s.pc}}%</div>
                     </div>
                   </div>
                 </p>
                 <a href="{{s.churl}}" class="card-link">Web</a>
-                {% if s.status == 1 %}
-                <a href="/{{s.chdir}}/out.m4a" class="card-link">Download</a>
+                {% if s.status == 1 and s.sln %}
+                <a target="_blank" href="/static/media/{{s.sln}}" class="card-link">Download</a>
                 {% endif %}
               </div>
               <div class="card-footer bg-transparent">
-                <span class="ms-3" id="status_{{s.sid}}" hx-get="/s/{{s.sid}}/status" hx-trigger="every 5s">
+                <span class="ms-3" id="status_{{s.sid}}" hx-get="/s/{{s.sid}}/status" {% if s.status == 0 %} hx-trigger="every 5s" {% else %} hx-trigger="click from:#{{s.chdir}}" {% endif %}>
                 {% if s.status == 0 %}
             🟨
             {% elif s.status == 1 %}

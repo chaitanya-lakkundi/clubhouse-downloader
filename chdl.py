@@ -36,7 +36,7 @@ def get_chunk_urls(churl, only_info=False):
     stats.stage += 1
     options = webdriver.ChromeOptions()
     options.add_argument("headless")
-
+    # driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
     driver = webdriver.Chrome(service=Service("./chromedriver"), options=options)
     driver.execute_cdp_cmd(
         "Network.setBlockedURLs",
@@ -162,6 +162,7 @@ def download_urls(urls, destdir):
             break
 
     done = 0
+    err = 0
     for en, c in enumerate(urls):
         fn = str(en + 1) + ".ts"
 
@@ -181,10 +182,13 @@ def download_urls(urls, destdir):
                 commit()
 
         except Exception as e:
+            err += 1
             print(repr(e))
             stats.status = 2
             stats.msg = "Error in download_urls"
             commit()
+            if err >= 4:
+                break
     return done
 
 
@@ -237,6 +241,7 @@ def write_info_verify(filepath, info):
 
     stats.stage += 1
 
+    # TODO: add title, room name, date in tags (attributes)
     aud = MP4(filepath)
     basepath = filepath[: -len(basename(filepath))]
 
@@ -266,20 +271,34 @@ def write_info_verify(filepath, info):
 
 
 def cleanup(chdir):
-    from os import remove
+    from os import remove, symlink
+    from os.path import exists
 
-    ls = glob(path_join(chdir, "*"))
-    if path_join(chdir, "success") not in ls:
+    global stats
+
+    print("Cleanup ", chdir)
+
+    if not exists(path_join(chdir, "success")):
         return
-    for fn in ls:
+
+    for fn in glob(path_join(chdir, "*.ts")):
         try:
             remove(fn)
         except Exception as e:
             print(repr(e))
 
+    # add symlink to download
+    sln = str(uuid1()).split("-")[0] + ".m4a"
+    sln_path = "static{0}media{0}{1}".format(sep, sln)
+    # TODO: do not hard code path
+    symlink("../../" + path_join(chdir, "out.m4a"), sln_path)
+    stats.sln = sln
+    commit()
+
 
 def download_ch_audio(churl, db_conn=None, db_inst=None, db_model=None):
     from time import time
+    from os.path import exists
 
     global db, stats, stats_model
 
@@ -295,6 +314,7 @@ def download_ch_audio(churl, db_conn=None, db_inst=None, db_model=None):
     convert_to_m4a_flag = True
     write_info_verify_flag = True
     candidate_chdir = {}
+    chdir = None
 
     for td in glob(rid + "*"):
         # temp dir
@@ -313,17 +333,23 @@ def download_ch_audio(churl, db_conn=None, db_inst=None, db_model=None):
                 candidate_chdir[3] = td
                 download_urls_flag = False
 
-            if path_join(td, "out.ts") in chunkf_list:
+            if exists(path_join(td, "out.ts")):
                 candidate_chdir[2] = td
                 merge_chunks_flag = False
 
-            if path_join(td, "out.m4a") in glob(path_join(td, "*.m4a")):
+            if exists(path_join(td, "out.m4a")):
                 candidate_chdir[1] = td
                 convert_to_m4a_flag = False
 
-            if path_join(td, "success") in glob(path_join(td, "*")):
+            if exists(path_join(td, "success")):
                 candidate_chdir[0] = td
                 write_info_verify_flag = False
+                # short circuit if success is present
+                # TODO: handle gracefully
+                chdir = td
+                stats = stats_model.query.filter_by(chdir=chdir).first()
+                cleanup(td)
+                return
 
         except Exception as e:
             print(repr(e))
@@ -367,6 +393,11 @@ def download_ch_audio(churl, db_conn=None, db_inst=None, db_model=None):
 
         if download_urls_flag:
             count = download_urls(chunks, chdir)
+            if len(chunks) != count:
+                # time may be expired for urls
+                chunks, chdir, info = get_chunk_urls(churl)
+                count = download_urls(chunks, chdir)
+
     except Exception as e:
         print("Error in download_ch_audio: ", repr(e))
         return

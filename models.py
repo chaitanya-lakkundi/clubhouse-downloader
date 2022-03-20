@@ -22,6 +22,8 @@ class StatsModel(db.Model):
     msg = db.Column(db.String())
     time_elapsed = db.Column(db.Integer())
     hidden = db.Column(db.Boolean())
+    # symlink name
+    sln = db.Column(db.String(), nullable=True)
 
     def __init__(
         self,
