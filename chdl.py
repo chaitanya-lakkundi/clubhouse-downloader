@@ -36,8 +36,8 @@ def get_chunk_urls(churl, only_info=False):
     stats.stage += 1
     options = webdriver.ChromeOptions()
     options.add_argument("headless")
-    # driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
-    driver = webdriver.Chrome(service=Service("./chromedriver"), options=options)
+    driver = webdriver.Chrome(executable_path="./chromedriver", options=options)
+    # driver = webdriver.Chrome(service=Service("./chromedriver"), options=options)
     driver.execute_cdp_cmd(
         "Network.setBlockedURLs",
         {
@@ -228,7 +228,7 @@ def convert_to_m4a(filepath, outpath):
     stats.stage += 1
     print("Convert {} to {}".format(filepath, outpath))
     try:
-        ffp = run(["ffmpeg", "-i", filepath, outpath], check=True, capture_output=True)
+        ffp = run(["ffmpeg", "-i", filepath, outpath], check=True)
     except Exception as e:
         print("Error in convert_to_m4a: ", repr(e))
 
@@ -378,8 +378,10 @@ def download_ch_audio(churl, db_conn=None, db_inst=None, db_model=None):
     except UnboundLocalError:
         # chdir is undefined yet
         pass
-    except:
-        info = get_chunk_urls(churl, only_info=True)
+    except:        
+        # this exception occurs when the database does not contain info of some existing folder
+        if not get_chunk_urls_flag:
+            info = get_chunk_urls(churl, only_info=True)
 
     if not get_chunk_urls_flag:
         with open(path_join(chdir, "chunks"), "r") as fd:

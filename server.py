@@ -32,7 +32,7 @@ def home():
         db.session.commit()
         return ""
 
-    all_stats = StatsModel.query.filter_by(hidden=False)
+    all_stats = StatsModel.query.filter_by(hidden=False).order_by(StatsModel.sid.desc())
     return render_template("home.html", all_stats=all_stats)
 
 

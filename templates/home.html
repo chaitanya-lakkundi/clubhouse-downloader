@@ -26,7 +26,10 @@
           <input type="text" name="churl" class="form-input form-control">
         </div>
         <div class="col">
-          <input type="submit" name="submit" class="btn btn-success" value="Download" hx-post="/" hx-include="[name='churl']" hx-trigger="click, keydown[returnKey]">
+          <input id="submit_link" type="submit" name="submit" class="btn btn-success" value="Download" hx-post="/" hx-include="[name='churl']" hx-trigger="click, keydown[returnKey]">
+          <div id="loading" class="spinner-border text-danger visually-hidden" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
         </div>
       </div>
       </form>
@@ -99,6 +102,13 @@
       }
 
       showDurations();
+
+      let sl = document.getElementById("submit_link");
+      sl.addEventListener("click", ()=>{
+        document.getElementById("loading").classList.remove("visually-hidden");
+        setTimeout(()=>{window.location.reload();}, 10000); 
+      });
+
     </script>
   </body>
 </html>
