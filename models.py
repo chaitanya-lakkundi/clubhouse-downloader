@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
+
 class StatsModel(db.Model):
     __tablename__ = "Statistics"
 
@@ -22,7 +23,21 @@ class StatsModel(db.Model):
     time_elapsed = db.Column(db.Integer())
     hidden = db.Column(db.Boolean())
 
-    def __init__(self, churl, title="", room="", duration=0, event_date=None, chdir="", stage=0, pc=0, status=0, msg="", time_elapsed=0, hidden=False):
+    def __init__(
+        self,
+        churl,
+        title="",
+        room="",
+        duration=0,
+        event_date=None,
+        chdir="",
+        stage=0,
+        pc=0,
+        status=0,
+        msg="",
+        time_elapsed=0,
+        hidden=False,
+    ):
         self.churl = churl
         self.title = title
         self.room = room

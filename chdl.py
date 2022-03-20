@@ -15,6 +15,7 @@ db = None
 stats = None
 stats_model = None
 
+
 def commit(msg=""):
     global db, stats
 
@@ -25,14 +26,16 @@ def commit(msg=""):
         print("Error while committing. ", msg, "\n\n", repr(e))
         db.session.rollback()
 
+
 def get_chunk_urls(churl, only_info=False):
     from os import mkdir
+
     global db, stats
 
     print("Get chunk urls from ", churl)
     stats.stage += 1
     options = webdriver.ChromeOptions()
-    options.add_argument('headless')
+    options.add_argument("headless")
 
     driver = webdriver.Chrome(service=Service("./chromedriver"), options=options)
     driver.execute_cdp_cmd(
@@ -118,7 +121,7 @@ def get_chunk_urls(churl, only_info=False):
             "arguments[0].currentTime = arguments[1]", audio, currentTime
         )
         currentTime += 29
-        if currentTime % 5*29 == 0:
+        if currentTime % 5 * 29 == 0:
             stats.pc = pc
             stats.msg = "Scanning audio"
             commit()
@@ -145,6 +148,7 @@ def get_chunk_urls(churl, only_info=False):
 
 def download_urls(urls, destdir):
     from urllib.request import urlretrieve
+
     global db, stats
     stats.stage += 1
     resumeFrom = 0
@@ -172,7 +176,7 @@ def download_urls(urls, destdir):
             urlretrieve(c, path_join(destdir, fn))
             done += 1
             if done % 5 == 0:
-                stats.pc = int(100*(en + 1) / len(urls))
+                stats.pc = int(100 * (en + 1) / len(urls))
                 stats.msg = msg
                 commit()
 
@@ -180,12 +184,13 @@ def download_urls(urls, destdir):
             print(repr(e))
             stats.status = 2
             stats.msg = "Error in download_urls"
-            commit()            
+            commit()
     return done
 
 
 def merge_chunks(chdir):
     from os.path import basename
+
     global db, stats
 
     stats.stage += 1
@@ -213,6 +218,7 @@ def merge_chunks(chdir):
 
 def convert_to_m4a(filepath, outpath):
     from subprocess import run
+
     global db, stats
 
     stats.stage += 1
@@ -226,6 +232,7 @@ def convert_to_m4a(filepath, outpath):
 def write_info_verify(filepath, info):
     from os.path import basename
     from mutagen.mp4 import MP4
+
     global db, stats
 
     stats.stage += 1
@@ -258,8 +265,22 @@ def write_info_verify(filepath, info):
         return False
 
 
+def cleanup(chdir):
+    from os import remove
+
+    ls = glob(path_join(chdir, "*"))
+    if path_join(chdir, "success") not in ls:
+        return
+    for fn in ls:
+        try:
+            remove(fn)
+        except Exception as e:
+            print(repr(e))
+
+
 def download_ch_audio(churl, db_conn=None, db_inst=None, db_model=None):
     from time import time
+
     global db, stats, stats_model
 
     db = db_conn
@@ -267,7 +288,7 @@ def download_ch_audio(churl, db_conn=None, db_inst=None, db_model=None):
     stats_model = db_model
 
     rid = churl.split("/")[-1]
-    
+
     get_chunk_urls_flag = True
     download_urls_flag = True
     merge_chunks_flag = True
@@ -275,7 +296,7 @@ def download_ch_audio(churl, db_conn=None, db_inst=None, db_model=None):
     write_info_verify_flag = True
     candidate_chdir = {}
 
-    for td in glob(rid+"*"):
+    for td in glob(rid + "*"):
         # temp dir
         try:
             with open(path_join(td, "chunks"), "r") as fd:
@@ -286,16 +307,16 @@ def download_ch_audio(churl, db_conn=None, db_inst=None, db_model=None):
             chunkf_list = glob(path_join(td, "*.ts"))
             # actual file count
             afc = len(chunkf_list)
-            
+
             if afc >= efc:
                 count = afc
                 candidate_chdir[3] = td
                 download_urls_flag = False
-            
+
             if path_join(td, "out.ts") in chunkf_list:
                 candidate_chdir[2] = td
                 merge_chunks_flag = False
-            
+
             if path_join(td, "out.m4a") in glob(path_join(td, "*.m4a")):
                 candidate_chdir[1] = td
                 convert_to_m4a_flag = False
@@ -316,12 +337,21 @@ def download_ch_audio(churl, db_conn=None, db_inst=None, db_model=None):
         except:
             pass
 
-    tmp_stats = stats_model.query.filter_by(chdir=chdir).first()
-    if tmp_stats:
-        stats = tmp_stats
     try:
+        tmp_stats = stats_model.query.filter_by(chdir=chdir).first()
+        if tmp_stats:
+            stats = tmp_stats
         # need to free memory of db_inst
-        info = {"title": stats.title, "room_name": stats.room, "duration": stats.duration}
+        info = {
+            "title": stats.title,
+            "room_name": stats.room,
+            "duration": stats.duration,
+        }
+        if not stats.title or not stats.room or not stats.duration:
+            raise Exception("Info not found")
+    except UnboundLocalError:
+        # chdir is undefined yet
+        pass
     except:
         info = get_chunk_urls(churl, only_info=True)
 
@@ -362,6 +392,8 @@ def download_ch_audio(churl, db_conn=None, db_inst=None, db_model=None):
         stats.msg = msg
         stats.time_elapsed = int(time() - s)
         commit()
+
+    cleanup(chdir)
 
 
 if __name__ == "__main__":

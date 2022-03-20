@@ -9,9 +9,11 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///chdl_stats.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
+
 @app.before_first_request
 def create_table():
     db.create_all()
+
 
 @app.route("/", methods=["GET", "POST", "DELETE"])
 def home():
@@ -20,7 +22,7 @@ def home():
         if churl:
             stats = StatsModel(churl=churl)
             download_ch_audio(churl, db_conn=db, db_inst=stats, db_model=StatsModel)
-    
+
     if request.method == "DELETE":
         print(dict(request.form.items()))
         sid = request.form["sid"]
@@ -32,6 +34,7 @@ def home():
 
     all_stats = StatsModel.query.filter_by(hidden=False)
     return render_template("home.html", all_stats=all_stats)
+
 
 @app.route("/s/<int:sid>/<string:field>", methods=["GET"])
 def status(sid, field):
@@ -46,8 +49,11 @@ def status(sid, field):
     elif field == "progress":
         p = """
         <div class="progress-bar progress-bar-striped {1}" role="progressbar" style="width: {0}%; aria-valuenow="{0}" aria-valuemin="0" aria-valuemax="100">{0}%</div>
-        """.format(sm.pc, "progress-bar-animated" if sm.status == 0 else "bg-secondary")
+        """.format(
+            sm.pc, "progress-bar-animated" if sm.status == 0 else "bg-secondary"
+        )
         return p
+
 
 if __name__ == "__main__":
     app.config["TEMPLATES_AUTO_RELOAD"] = True
